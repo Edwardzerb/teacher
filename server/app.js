@@ -5,10 +5,34 @@ var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
-var index = require('./routes/index');
-var users = require('./routes/users');
+import config from 'config-lite';
+import router from './routes/index.js';
+import session from 'express-session';
+import history from 'connect-history-api-fallback';
+
+
+// var index = require('./routes/index');
+// var users = require('./routes/users');
 
 var app = express();
+
+// 解决跨域问题
+app.all('*', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.Origin || req.headers.origin);
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.header('Access-Control-Allow-Methods', 'PUT, POTS, GET, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Credentails', true); // 可以携带cookies
+  // res.header('X-Powered-By', '3.2.1');
+
+  // 该方法用于查看客户端发送给服务端的请求，服务端返回告知支持那些请求方法
+  if(req.method == 'OPOTIONS') {
+    res.sendStatus(200);
+  } else {  // 上面处理完，继续去执行下面的路由
+    next();
+  }
+});
+
+
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -31,6 +55,11 @@ app.use(function(req, res, next) {
   err.status = 404;
   next(err);
 });
+
+router(app);
+
+// app.use(cookieParser());
+
 
 // error handler
 app.use(function(err, req, res, next) {
