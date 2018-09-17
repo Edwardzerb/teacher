@@ -1,82 +1,49 @@
-import BaseComponent from "./baseComponent";
+const mysql = require('mysql');
+const sqlcfg = require('../config/sqlcfg');
+const baseComponent = require('./baseComponent');
 
-class sqlComponent extends BaseComponent {
+class sqlComponent extends baseComponent {
     constructor() {
         super();
-
-    }
-
-    isJson (obj) {
-        let isJson = typeof(obj) == "object" && Object.prototype.toString.call(obj).toLowerCase() == "[object object]" && !obj.length;
-        return isJson;
-    }
-    /**
-     * 
-     * @param {*} columnNames select查询的条件，只查询一个字段的时候 就传字符串；如果是多个字段，使用数组包字符串 例：['', '']；若是多表查询 ['a.col1', 'b.col2']
-     * @param {*} tables 查询的表名, 只有一个张表的时候，传字符串；如果是多张表，传输组包字符串 ex：['a', 'b'];
-     * @param {json} singleColName json数据类型 传入的是一个json，where语句后面的自查询
-     * @param {*} condition
-     */
-    selSQL(columnNames, tables, singleColName, condition) {
-        console.log("columnNames:",columnNames);
-        console.log("tables:",tables);
-        console.log("singleColName:",singleColName);
-        console.log(isJson(singleColName));
-        if (!isJson(singleColName) && singleColName != null) {
-            console.log('子查询的数据不是json格式，请重新输入');
-            return;
+        this.mycon = {
+            host: sqlcfg.host,
+            user: sqlcfg.user,
+            password: sqlcfg.password,
+            port: sqlcfg.port,
+            database: sqlcfg.database
         }
-        let colStr = "";
-        let sinStr = "";
-        let tabStr = "";
-        let selSQL = "";
-        // 判断select条件
-    
-        if (Array.isArray(columnNames)) {
-            for(let i = 0; i < columnNames.length; i++) {
-                if (i != columnNames.length - 1) {
-                    colStr += columnNames[i] + ",";
-                } else {
-                    colStr += columnNames[i];
-                }
-            }
-            if (colStr.split('.').length - 1 != tables.length && colStr.indexOf('.') != -1) {
-                console.log('传入的表名和查询的条件不匹配');
-                return;
+        this.pool = null;
+    }
+
+    handleError() {
+        if (err) {
+            if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+                connect();
+            } else {
+                console.error(err.stack || err);
             }
         } else {
-            console.log(colStr);
-            colStr = columnNames;
+            console.log('Connect to MySql://' + this.mycon.host + ':' + this.mycon.port + '/' +  this.mycon.database + ' OK.');
         }
-    
-        // 判断table
-        if (Array.isArray(tables)) {
-            for(let i = 0; i < tables.length; i++) {
-                if (tables.length > 1) {
-                    if (i == tables.length - 1) {
-                        tabStr += tables[i];
+    }
+
+    connect() {
+        this.pool = mysql.createPool(this.mycon);
+        // this.mysqlc.connect(this.handleError);
+        // this.mysqlc.on('error', this.handleError);
+    }
+
+    queryPromise(sql) {
+        return new Promise((resolve, reject) => {
+            this.pool.getConnection((err, con) => {
+                con.query(this.queryPromise, sql, (err, result) => {
+                    if (err) {
+                        reject(err);
                     } else {
-                        tabStr += tables[i] + ',';
+                        resolve(result);
                     }
-                } else {
-                    tabStr = tables[i];
-                }
-            }
-        } else {
-            tabStr = tables;
-        }
-        if (singleColName != null) {
-            // 判断 where 条件
-            for (const colName in singleColName) {
-                // sinStr += colName + "=" + "'" +singleColName[colName] +"'"+ ",";
-                sinStr += `${colName}='${singleColName[colName]}' ${condition} `;
-            }
-            
-            selSQL = `select ${colStr} from ${tabStr} where ${sinStr}`;
-        } else {
-            selSQL = `select ${colStr} from ${tabStr}`;
-        }
-        console.log('class --- selSQL: ', selSQL);
-        return selSQL;
+                });
+            });
+        });
     }
 }
